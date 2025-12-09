@@ -1,36 +1,49 @@
-# Imagem base leve (Debian-based)
+# ==========================================
+# STAGE 1: Installer (Mantido igual)
+# ==========================================
+FROM debian:bullseye-slim AS installer
+
+ARG TERRAFORM_VERSION=1.6.6
+
+# Instala apenas o necessário para baixar e descompactar
+RUN apt-get update && apt-get install -y curl unzip
+
+# 1. Prepara AWS CLI v2
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install
+
+# 2. Prepara Terraform
+RUN curl -fsSL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip -o terraform.zip \
+    && unzip terraform.zip \
+    && mv terraform /usr/local/bin/
+
+# ==========================================
+# STAGE 2: Final (A imagem que vai pro Harbor)
+# ==========================================
 FROM debian:bullseye-slim
 
-# Argumentos para facilitar upgrades futuros
-ARG TERRAFORM_VERSION=1.6.6
-ARG AWS_CLI_VERSION=2.15.0
-
-# Instala dependências básicas (curl, unzip, git, etc)
-RUN apt-get update && apt-get install -y \
-    curl \
-    unzip \
+# Instala dependências de RUNTIME
+# ADICIONADO: openjdk-11-jre (Essencial para o Jenkins Agent funcionar)
+# ADICIONADO: tar (Necessário para o Jenkins copiar o agente)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     jq \
     make \
+    groff \
+    less \
+    ca-certificates \
+    openjdk-11-jre \
+    tar \
     && rm -rf /var/lib/apt/lists/*
 
-# Instala AWS CLI v2
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install \
-    && rm awscliv2.zip
+# Copia AWS CLI do stage anterior
+COPY --from=installer /usr/local/aws-cli /usr/local/aws-cli
+RUN ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws
 
-# Instala Terraform
-# O Docker vai substituir ${TERRAFORM_VERSION} automaticamente aqui
-RUN curl -fsSL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip -o terraform.zip \
-    && unzip terraform.zip \
-    && mv terraform /usr/local/bin/ \
-    && rm terraform.zip
+# Copia Terraform do stage anterior
+COPY --from=installer /usr/local/bin/terraform /usr/local/bin/terraform
 
-# Verifica as instalações
-RUN aws --version && terraform --version
-
-# Define diretório de trabalho padrão
+# Setup final
 WORKDIR /workspace
-
-CMD ["/bin/bash"]
+CMD ["sleep", "infinity"]
