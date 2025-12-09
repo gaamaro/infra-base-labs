@@ -24,7 +24,7 @@ RUN curl -fsSL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/ter
 FROM debian:bullseye-slim
 
 # Instala dependências de RUNTIME
-# ADICIONADO: openjdk-11-jre (Essencial para o Jenkins Agent funcionar)
+# ADICIONADO: openjdk-17-jdk-headless (Essencial para o Jenkins Agent funcionar)
 # ADICIONADO: tar (Necessário para o Jenkins copiar o agente)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     groff \
     less \
     ca-certificates \
-    openjdk-11-jre \
+    openjdk-17-jdk-headless \
     tar \
     && rm -rf /var/lib/apt/lists/*
 
